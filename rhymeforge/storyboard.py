@@ -78,7 +78,7 @@ gentle motion. Topic: {script.get('topic')}. Keep the same location within a sec
 Lines: {[{'id': s['id'], 'line': s['line'], 'section': s['section_type'], 'characters': s['characters']} for s in need]}
 Return JSON list of {{"id", "scene" (what we see, <=30 words, no character descriptions), "motion" (<=12 words, e.g. "Pip hops and waves")}}."""
         try:
-            for r in llm.json(prompt, system=SYSTEM):
+            for r in llm.json_list(prompt, system=SYSTEM):
                 scenes[r["id"]] = r
         except (LLMError, TypeError, KeyError) as e:
             log(f"storyboard: LLM failed ({e}); using template prompts")

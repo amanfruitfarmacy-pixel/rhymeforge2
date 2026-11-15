@@ -107,7 +107,7 @@ routine, a twist or a second skill, e.g. "counting + bath time"). Teach exactly 
 Return JSON list of objects with keys:
 topic, working_title, angle, learning_goal, items (4-6 concrete things the song names), why_it_can_win."""
         try:
-            raw = llm.json(prompt, system=SYSTEM)
+            raw = llm.json_list(prompt, system=SYSTEM)
             for idea in raw:
                 if idea.get("topic") and is_unique(idea["working_title"], avoid + [i["working_title"] for i in ideas]):
                     ideas.append(idea)

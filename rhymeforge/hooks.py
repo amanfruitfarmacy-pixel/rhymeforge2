@@ -120,7 +120,7 @@ characters {names}, include a sound word or a question. Return JSON {{"text": ".
 def draft_hooks(llm: LLM, idea: dict, names: list[str], n: int = 6) -> list[dict]:
     if llm.available:
         try:
-            r = llm.json(f"""Write {n} opening hooks (first sung/spoken line) for a toddler song.
+            r = llm.json_list(f"""Write {n} opening hooks (first sung/spoken line) for a toddler song.
 Idea: {idea}. Characters: {names}.
 Use a DIFFERENT formula for each, chosen from: {[(f['id'], f['pattern'], f['example']) for f in FORMULAS]}.
 Return JSON list of {{"formula": id, "text": hook}}.""", system=SYSTEM)

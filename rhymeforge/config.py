@@ -43,7 +43,7 @@ DEFAULTS: dict[str, Any] = {
         "clip_seconds": 5,
     },
     "hooks": {"min_score": 75, "max_rewrites": 3},
-    "gemini": {"model": "gemini-2.5-flash", "min_interval_s": 6},
+    "gemini": {"model": "gemini-flash-latest", "fallback_model": "gemini-flash-lite-latest", "min_interval_s": 6},
     "generation": {
         "backend": "kaggle",
         "image_model": "stabilityai/stable-diffusion-xl-base-1.0",

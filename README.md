@@ -52,9 +52,12 @@ stage and the folder layout without any keys or GPU. Requires `ffmpeg`.
 
 1. **Install**: `pip install -e ".[youtube,kaggle]"` and ffmpeg.
 2. **Gemini key**: https://aistudio.google.com/apikey → put it in `.env` as `GEMINI_API_KEY` (see `.env.example`).
-3. **Kaggle**: create an account, **verify your phone number** (needed for GPU + internet in notebooks),
-   then Settings → API → "Create New Token" and save `kaggle.json` to `~/.kaggle/`.
-   You get roughly 30 GPU hours a week; one week of 4 videos is designed to fit within a single run.
+   RhymeForge calls Gemini's OpenAI-compatible endpoint with `gemini-flash-latest`, and switches to
+   `gemini-flash-lite-latest` automatically if a request times out.
+3. **Kaggle**: create an account and **verify your phone number** (needed for GPU + internet in notebooks).
+   Then Settings → API → **Generate New Token** and set `KAGGLE_API_TOKEN` in `.env` (or use the legacy
+   `kaggle.json` in `~/.kaggle/`). Also set `KAGGLE_USERNAME`. You get roughly 30 GPU hours a week, and one week
+   of 4 videos is designed to fit within a single run.
 4. **YouTube (Google Cloud project)**:
    - Enable *YouTube Data API v3* and *YouTube Analytics API*.
    - Create an **API key** → `YOUTUBE_API_KEY` in `.env` (used for scouting).
@@ -69,6 +72,13 @@ stage and the folder layout without any keys or GPU. Requires `ffmpeg`.
 
 No Kaggle? Use `--backend manual` to run the generated `generate.py` in Google Colab (free GPU) and drop the results
 back in, or `--backend local` if you have an NVIDIA GPU.
+
+### Running in a Claude Code cloud session
+
+Keys are stored as the environment's network secrets and added to requests by its proxy, so `.env` only holds
+placeholders (`GEMINI_API_KEY=proxy-injected`, `KAGGLE_KEY=proxy-injected`, plus your real `KAGGLE_USERNAME`).
+Kaggle must use the username + key route there, because the CLI's token check sends the token in the request
+body, where the proxy can't add it.
 
 ## Output layout
 

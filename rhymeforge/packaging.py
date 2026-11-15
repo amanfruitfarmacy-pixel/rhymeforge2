@@ -65,7 +65,7 @@ Song: title={script.get('title')!r}, learning_goal={script.get('learning_goal')!
 Characters: {chars}
 Return JSON list of {{"title", "thumbnail_text", "thumbnail_scene", "ctr_score" (0-100 your estimate)}}."""
         try:
-            candidates = llm.json(prompt, system=SYSTEM)
+            candidates = llm.json_list(prompt, system=SYSTEM)
         except (LLMError, TypeError) as e:
             log(f"packaging: LLM failed ({e}); using templates")
     candidates = [c for c in candidates if isinstance(c, dict)] + offline_pairs(script, chars)

@@ -42,7 +42,8 @@ hooks:
   max_rewrites: 3
 
 gemini:
-  model: "gemini-2.5-flash"
+  model: "gemini-flash-latest"   # alias that follows the current Flash model
+  fallback_model: "gemini-flash-lite-latest"   # used if the main model times out
   min_interval_s: 6          # free tier is rate limited
 
 generation:
