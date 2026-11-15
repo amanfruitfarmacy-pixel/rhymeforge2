@@ -10,6 +10,14 @@ from .config import load_config
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except RuntimeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+
+def _main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="rhymeforge", description="Toddler song pipeline for YouTube, on free tools.")
     ap.add_argument("--config", default=None, help="path to config.yaml")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -63,6 +71,9 @@ def main(argv: list[str] | None = None) -> int:
     sh.add_argument("-o", "--out", default="shorts")
 
     sub.add_parser("review", help="autopsy + Shorts for uploads public for 48h+")
+
+    au = sub.add_parser("auth", help="one-time YouTube sign-in; saves .secrets/token.json and shows your channel")
+    au.add_argument("--no-browser", action="store_true", help="print the sign-in link instead of opening a browser")
 
     args = ap.parse_args(argv)
     cfg = load_config(args.config)
@@ -137,6 +148,18 @@ def main(argv: list[str] | None = None) -> int:
                 p["file"] = str(cut_vertical(Path(args.video), p["start"], p["end"], Path(args.out) / f"short_{i}.mp4"))
         Path(args.out).mkdir(parents=True, exist_ok=True)
         (Path(args.out) / "shorts.json").write_text(json.dumps(picks, indent=2))
+
+    elif args.cmd == "auth":
+        from .youtube import credentials, whoami
+        secrets = Path(cfg["paths"]["secrets"])
+        creds = credentials(secrets, open_browser=not args.no_browser)
+        channels = whoami(creds)
+        if not channels:
+            print("Signed in, but this Google account has no YouTube channel. Create one at youtube.com first.")
+            return 1
+        for c in channels:
+            print(f"Signed in. Channel: {c['title']} ({c['id']}), subscribers: {c['subscribers']}")
+        print(f"Saved login to {secrets / 'token.json'} (keep this file private).")
 
     elif args.cmd == "review":
         from .pipeline import review_due

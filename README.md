@@ -58,14 +58,25 @@ stage and the folder layout without any keys or GPU. Requires `ffmpeg`.
    Then Settings → API → **Generate New Token** and set `KAGGLE_API_TOKEN` in `.env` (or use the legacy
    `kaggle.json` in `~/.kaggle/`). Also set `KAGGLE_USERNAME`. You get roughly 30 GPU hours a week, and one week
    of 4 videos is designed to fit within a single run.
-4. **YouTube (Google Cloud project)**:
-   - Enable *YouTube Data API v3* and *YouTube Analytics API*.
-   - Create an **API key** → `YOUTUBE_API_KEY` in `.env` (used for scouting).
-   - Create an **OAuth client ID (Desktop app)** → download it to `.secrets/client_secret.json` (used for upload + analytics).
-     The first upload opens a browser to sign in.
-   - **Apply for the API audit early.** Until Google approves your project, videos uploaded through the API are
-     locked to private. You can still publish them by hand in YouTube Studio meanwhile.
-   - Verify your channel's phone number so custom thumbnails work.
+4. **YouTube (Google Cloud project)**. Do this on your own computer, once:
+   1. At https://console.cloud.google.com create a project (e.g. `rhymeforge`).
+   2. APIs & Services → Library: enable **YouTube Data API v3** and **YouTube Analytics API**.
+   3. Google Auth Platform → Branding (the "OAuth consent screen"): app name, your email, User type
+      **External**. Under Audience, add your own Google account as a **test user**, then click
+      **Publish app** → "In production". In "Testing" mode, logins expire every 7 days. Google doesn't need to
+      verify the app for your own use; you'll just see a "Google hasn't verified this app" screen
+      (Advanced → Go to rhymeforge).
+   4. Clients → Create client → **Desktop app** → download the JSON and save it as `.secrets/client_secret.json`.
+   5. Run `rhymeforge auth`. A browser opens; sign in with the Google account that owns your channel and allow
+      access. It prints your channel name and saves `.secrets/token.json`. Keep both files private;
+      `.secrets/` is git-ignored.
+   6. Optional: Credentials → Create credentials → **API key**, restricted to YouTube Data API v3, as
+      `YOUTUBE_API_KEY` in `.env`. Without it, scouting uses your login from step 5 (same free quota).
+   7. **Apply for the YouTube API audit early** (YouTube API Services → Audit and quota extension form).
+      Until Google approves your project, videos uploaded through the API are locked to private. You can still
+      publish them by hand in YouTube Studio meanwhile.
+   8. In YouTube Studio, verify your channel's phone number (needed for custom thumbnails), and under
+      Settings → Channel → Advanced settings set the audience to **"Yes, it's made for kids"**.
 5. **Config**: `cp config.example.yaml config.yaml`, then set your characters, schedule and timezone, plus some seed
    channel IDs to watch.
 6. Run `rhymeforge week --count 4`.

@@ -20,17 +20,27 @@ API = "https://www.googleapis.com/youtube/v3/"
 
 
 class YouTubeData:
-    """YouTube Data API v3 with a plain API key (read-only, free quota)."""
+    """YouTube Data API v3, read-only. Authenticates with an API key (sent in the
+    X-Goog-Api-Key header) or, if there is none, with your OAuth login from `rhymeforge auth`."""
 
-    def __init__(self, key: str):
-        if not key:
-            raise RuntimeError("YOUTUBE_API_KEY is not set (needed for scouting). Use --offline to try sample data.")
+    def __init__(self, key: str = "", creds=None):
+        if not key and creds is None:
+            raise RuntimeError("No YouTube access for scouting: set YOUTUBE_API_KEY or run `rhymeforge auth`. "
+                               "Use --offline to try sample data.")
         self.key = key
+        self.creds = creds
         self.units = 0
 
+    def _headers(self) -> dict:
+        if self.key:
+            return {"X-Goog-Api-Key": self.key}
+        if not self.creds.valid:
+            from google.auth.transport.requests import Request
+            self.creds.refresh(Request())
+        return {"Authorization": f"Bearer {self.creds.token}"}
+
     def get(self, endpoint: str, cost: int = 1, **params) -> dict:
-        params["key"] = self.key
-        r = requests.get(API + endpoint, params=params, timeout=30)
+        r = requests.get(API + endpoint, params=params, headers=self._headers(), timeout=30)
         self.units += cost
         if r.status_code != 200:
             raise RuntimeError(f"YouTube API {endpoint} {r.status_code}: {r.text[:300]}")
@@ -109,7 +119,12 @@ def run_scout(cfg: dict, data_dir: Path, offline: bool = False) -> list[dict]:
             log("scout: using cached YouTube data")
             videos = cached["videos"]
         else:
-            yt = YouTubeData(cfg["keys"]["youtube"])
+            key = cfg["keys"]["youtube"]
+            creds = None
+            if not key:
+                from .youtube import credentials
+                creds = credentials(Path(cfg["paths"]["secrets"]), interactive=False)
+            yt = YouTubeData(key, creds)
             channels = list(sc["seed_channels"])
             for q in sc["search_queries"]:
                 channels += yt.search_channels(q)

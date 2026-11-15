@@ -39,7 +39,7 @@ def next_slots(publish_days: list[str], time_str: str, tz: str, count: int,
     return slots
 
 
-def credentials(secrets_dir: Path):
+def credentials(secrets_dir: Path, interactive: bool = True, open_browser: bool = True):
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
@@ -48,13 +48,28 @@ def credentials(secrets_dir: Path):
     if creds and creds.expired and creds.refresh_token:
         creds.refresh(Request())
     if not creds or not creds.valid:
+        if not interactive:
+            raise RuntimeError(f"Not signed in to YouTube ({token} missing or expired). Run `rhymeforge auth` first.")
         client = secrets_dir / "client_secret.json"
         if not client.exists():
-            raise RuntimeError(f"Missing {client}. See README: 'YouTube setup'.")
-        creds = InstalledAppFlow.from_client_secrets_file(str(client), SCOPES).run_local_server(port=0)
+            raise RuntimeError(f"Missing {client}. Download your OAuth client (Desktop app) JSON there. "
+                               "See README: 'YouTube setup'.")
+        flow = InstalledAppFlow.from_client_secrets_file(str(client), SCOPES)
+        creds = flow.run_local_server(port=0, open_browser=open_browser,
+                                      authorization_prompt_message="Open this link to sign in to YouTube:\n{url}\n")
         secrets_dir.mkdir(parents=True, exist_ok=True)
         token.write_text(creds.to_json())
     return creds
+
+
+def whoami(creds) -> list[dict]:
+    """The YouTube channel(s) this login can manage, to confirm the right account."""
+    from googleapiclient.discovery import build
+    yt = build("youtube", "v3", credentials=creds)
+    r = yt.channels().list(part="snippet,statistics,status", mine=True).execute()
+    return [{"id": c["id"], "title": c["snippet"]["title"],
+             "subscribers": c["statistics"].get("subscriberCount"),
+             "made_for_kids_default": c.get("status", {}).get("madeForKids")} for c in r.get("items", [])]
 
 
 def upload_video(creds, final: Path, thumb: Path, package: dict, cfg: dict, publish_at: datetime,
