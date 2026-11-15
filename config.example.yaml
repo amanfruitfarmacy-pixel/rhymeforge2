@@ -1,0 +1,59 @@
+# Copy to config.yaml and edit. Anything left out falls back to the defaults
+# in rhymeforge/config.py.
+
+channel:
+  name: "Pip & Coco Songs"
+  # Your recurring cast. Keep descriptions identical every week: they are
+  # pasted into every image prompt to keep characters consistent.
+  characters:
+    - name: Pip
+      description: "a small round yellow chick with big friendly blue eyes, tiny orange feet and a red knitted scarf"
+    - name: Coco
+      description: "a little lavender baby elephant with pink cheeks, big floppy ears and a yellow bow"
+  style_bible: "cute 3D cartoon render, soft pastel colors, rounded shapes, bright even lighting, preschool TV show style, simple uncluttered background, high detail"
+  language: en
+  category_id: "27"          # 27 = Education, 10 = Music
+  default_tags: ["nursery rhymes", "kids songs", "toddler learning", "songs for kids"]
+
+schedule:
+  publish_days: [mon, wed, fri, sun]
+  publish_time: "16:00"
+  timezone: "America/New_York"
+  min_lead_hours: 24         # gives you a review window before anything goes public
+
+scout:
+  seed_channels: []          # YouTube channel IDs (UC...) of kids-song channels to watch
+  search_queries: ["nursery rhymes for toddlers", "toddler learning songs", "kids songs new"]
+  videos_per_channel: 30
+  min_age_days: 3
+  cache_hours: 24
+
+video:
+  duration_s: 180
+  bpm: 110
+  width: 1920
+  height: 1080
+  fps: 24
+  unique_clips: 12           # AI video clips per video; the rest are animated stills / reused chorus shots
+  clip_seconds: 5
+
+hooks:
+  min_score: 75
+  max_rewrites: 3
+
+gemini:
+  model: "gemini-2.5-flash"
+  min_interval_s: 6          # free tier is rate limited
+
+generation:
+  backend: kaggle            # kaggle | local | manual | offline
+  image_model: "stabilityai/stable-diffusion-xl-base-1.0"
+  video_model: "Lightricks/LTX-Video"
+  music_model: "ace-step"
+  kaggle_kernel_slug: "rhymeforge-gen"
+  kaggle_timeout_hours: 11
+
+upload:
+  enabled: true
+  privacy: private           # uploaded private and scheduled with publishAt
+  playlist_id: ""
