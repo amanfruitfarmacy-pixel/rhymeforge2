@@ -37,6 +37,25 @@ video:
   unique_clips: 12           # AI video clips per video; the rest are animated stills / reused chorus shots
   clip_seconds: 5
 
+ideas:
+  seed_topics: {}            # topic -> search phrase for demand ranking, e.g. {hygiene: "brushing teeth song"}
+
+llm:
+  provider: gemini           # gemini (free tier) | claude (ANTHROPIC_API_KEY)
+  claude_model: claude-opus-5-5
+
+rhymes:
+  repeats: 3                 # times a public-domain rhyme is sung per video
+  bpm: 100
+
+captions:
+  style: bounce              # bounce (words hop as sung) | karaoke (fill sweep)
+
+shorts:
+  per_video: 1
+  min_s: 20
+  max_s: 58
+
 hooks:
   min_score: 75
   max_rewrites: 3
@@ -53,6 +72,11 @@ generation:
   music_model: "ace-step"
   kaggle_kernel_slug: "rhymeforge-gen"
   kaggle_timeout_hours: 11
+  # no-GPU `api` backend (default for `rhymeforge make`)
+  make_backend: api
+  image_api: pollinations    # pollinations | placeholder | none (use art/<shot>.png, e.g. from Canva)
+  music_api: local           # local (free) | elevenlabs
+  piper_voice: ""            # or PIPER_VOICE env var
 
 upload:
   enabled: true

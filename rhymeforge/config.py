@@ -43,6 +43,11 @@ DEFAULTS: dict[str, Any] = {
         "clip_seconds": 5,
     },
     "hooks": {"min_score": 75, "max_rewrites": 3},
+    "ideas": {"seed_topics": {}},  # topic -> search phrase; empty = demand.SEED_TOPICS
+    "llm": {"provider": "gemini", "claude_model": "claude-opus-5-5", "claude_effort": "medium"},
+    "captions": {"style": "bounce"},  # bounce | karaoke
+    "rhymes": {"repeats": 3, "bpm": 100},
+    "shorts": {"per_video": 1, "min_s": 20, "max_s": 58},
     "gemini": {"model": "gemini-flash-latest", "fallback_model": "gemini-flash-lite-latest", "min_interval_s": 6},
     "generation": {
         "backend": "kaggle",
@@ -51,10 +56,17 @@ DEFAULTS: dict[str, Any] = {
         "music_model": "ace-step",
         "kaggle_kernel_slug": "rhymeforge-gen",
         "kaggle_timeout_hours": 11,
+        # `api` backend (no GPU) and `rhymeforge make`:
+        "image_api": "pollinations",   # pollinations | placeholder | none (bring your own art)
+        "pollinations_model": "flux",
+        "image_min_interval_s": 6,
+        "music_api": "local",          # local (free) | elevenlabs (paid key)
+        "piper_voice": "",             # path to a Piper .onnx voice for local vocals
+        "make_backend": "api",
     },
     "upload": {"enabled": True, "privacy": "private", "playlist_id": ""},
     "paths": {"runs": "runs", "data": "data", "library": "library", "secrets": ".secrets"},
-    "keys": {"gemini": "", "youtube": ""},
+    "keys": {"gemini": "", "youtube": "", "anthropic": "", "elevenlabs": ""},
 }
 
 
@@ -92,4 +104,6 @@ def load_config(path: str | Path | None = None, overrides: dict | None = None) -
         cfg = deep_merge(cfg, overrides)
     cfg["keys"]["gemini"] = cfg["keys"].get("gemini") or os.environ.get("GEMINI_API_KEY", "")
     cfg["keys"]["youtube"] = cfg["keys"].get("youtube") or os.environ.get("YOUTUBE_API_KEY", "")
+    cfg["keys"]["anthropic"] = cfg["keys"].get("anthropic") or os.environ.get("ANTHROPIC_API_KEY", "")
+    cfg["keys"]["elevenlabs"] = cfg["keys"].get("elevenlabs") or os.environ.get("ELEVENLABS_API_KEY", "")
     return cfg

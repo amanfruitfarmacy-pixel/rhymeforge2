@@ -71,10 +71,11 @@ def add_prompts(llm: LLM, shots: list[dict], script: dict, cfg: dict) -> list[di
     chars = {c["name"]: c["description"] for c in cfg["channel"]["characters"]}
     style = cfg["channel"]["style_bible"]
     need = [s for s in shots if s["kind"] in ("ai_clip", "still")]
+    hint = (script.get("idea") or {}).get("scene_hint", "")
     scenes: dict[str, dict] = {}
     if llm.available and need:
         prompt = f"""For each lyric line of a toddler music video, describe ONE simple visual scene and ONE
-gentle motion. Topic: {script.get('topic')}. Keep the same location within a section.
+gentle motion. Topic: {script.get('topic')}. {('Setting: ' + hint + '.') if hint else ''} Keep the same location within a section.
 Lines: {[{'id': s['id'], 'line': s['line'], 'section': s['section_type'], 'characters': s['characters']} for s in need]}
 Return JSON list of {{"id", "scene" (what we see, <=30 words, no character descriptions), "motion" (<=12 words, e.g. "Pip hops and waves")}}."""
         try:
@@ -84,7 +85,8 @@ Return JSON list of {{"id", "scene" (what we see, <=30 words, no character descr
             log(f"storyboard: LLM failed ({e}); using template prompts")
     for s in need:
         sc = scenes.get(s["id"], {})
-        scene = sc.get("scene") or f"a cheerful scene illustrating: {s['line']}"
+        scene = sc.get("scene") or (f"{hint}, showing: {s['line']}" if hint else
+                                    f"a cheerful scene illustrating: {s['line']}")
         cast = "; ".join(f"{n}, {chars[n]}" for n in s["characters"] if n in chars)
         s["image_prompt"] = f"{style}. {cast}. {scene}"
         s["motion_prompt"] = (f"{style}. {cast}. {sc.get('motion') or 'gentle happy bouncing, small head tilt, waving'}. "

@@ -5,6 +5,7 @@ Backends:
   local   - run the same job script on this machine (needs an NVIDIA GPU)
   manual  - write job.json + generate.py for you to run in Colab, then re-run the command
   offline - make placeholder images/clips/songs locally (no GPU, for testing the pipeline)
+  api     - no GPU: free image API + local or ElevenLabs music (see freegen.py)
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .script import ace_step_lyrics
+from .script import ace_step_lyrics, lyric_lines
 from .util import log, run, write_json
 
 KERNEL_SRC = Path(__file__).parent / "kaggle_kernel" / "generate.py"
@@ -56,7 +57,9 @@ def build_job(videos: list[dict], cfg: dict) -> dict:
                               "seed": seed_for(tid)})
         job["songs"].append({"id": slug, "lyrics": ace_step_lyrics(vid["script"]),
                              "tags": vid["script"]["music_tags"], "duration": v["duration_s"],
-                             "seed": seed_for(slug)})
+                             "seed": seed_for(slug), "bpm": vid["script"].get("bpm", v["bpm"]),
+                             "lines": [l["text"] for l in lyric_lines(vid["script"])],
+                             "tunes": vid["script"].get("tunes"), "sections": vid["script"]["sections"]})
     return job
 
 
@@ -66,6 +69,9 @@ def run_job(job: dict, cfg: dict, work: Path, backend: str) -> Path:
     write_json(work / "job.json", job)
     if backend == "offline":
         offline_generate(job, out)
+    elif backend == "api":
+        from .freegen import api_generate
+        api_generate(job, cfg, out)
     elif backend == "local":
         subprocess.run([sys.executable, str(KERNEL_SRC), str(work / "job.json"), str(out)], check=True)
     elif backend == "kaggle":

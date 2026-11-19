@@ -25,11 +25,29 @@ def _main(argv: list[str] | None = None) -> int:
     w = sub.add_parser("week", help="the whole week in one command: scout -> ideas -> songs -> videos -> upload")
     w.add_argument("--count", type=int, default=4)
     w.add_argument("--offline", action="store_true", help="no keys/GPU: sample data, templates, placeholder assets")
-    w.add_argument("--backend", choices=["kaggle", "local", "manual", "offline"])
+    w.add_argument("--backend", choices=["kaggle", "local", "manual", "api", "offline"])
     w.add_argument("--force", action="store_true", help="redo stages that already have results")
     w.add_argument("--no-upload", action="store_true")
     w.add_argument("--allow-qa-fail", action="store_true", help="upload even if automated QA flagged something")
     w.add_argument("--run-name", help="folder name under runs/ (default: ISO week)")
+
+    mk = sub.add_parser("make", help="one video, no accounts: idea -> lyrics -> storyboard -> visuals -> "
+                                     "music -> 16:9 video + Short")
+    what = mk.add_mutually_exclusive_group()
+    what.add_argument("--topic", help='e.g. "brushing teeth", "colours", bath_time (default: best by search demand)')
+    what.add_argument("--rhyme", help="a public-domain rhyme, e.g. twinkle-twinkle (see `rhymeforge rhymes`)")
+    mk.add_argument("--images", choices=["pollinations", "placeholder", "none"], help="image source (api backend)")
+    mk.add_argument("--music", choices=["local", "elevenlabs"], help="music source (api backend)")
+    mk.add_argument("--backend", choices=["api", "kaggle", "local", "manual", "offline"],
+                    help="api (default) = no GPU; kaggle = free GPU with AI clips and sung vocals")
+    mk.add_argument("--llm", choices=["gemini", "claude"], help="who writes lyrics and storyboards")
+    mk.add_argument("--offline", action="store_true", help="no network at all: templates + placeholders")
+    mk.add_argument("--force", action="store_true")
+    mk.add_argument("--run-name")
+
+    t = sub.add_parser("topics", help="rank toddler topics by YouTube search demand (autocomplete, no key)")
+    t.add_argument("--offline", action="store_true")
+    sub.add_parser("rhymes", help="list the built-in public-domain rhymes")
 
     s = sub.add_parser("scout", help="rank videos by how far they beat their own channel")
     s.add_argument("--offline", action="store_true")
@@ -82,6 +100,32 @@ def _main(argv: list[str] | None = None) -> int:
         from .pipeline import week
         week(cfg, count=args.count, offline=args.offline, backend=args.backend, force=args.force,
              upload=not args.no_upload, run_name=args.run_name, allow_qa_fail=args.allow_qa_fail)
+
+    elif args.cmd == "make":
+        from .pipeline import make
+        g = cfg["generation"]
+        if args.images:
+            g["image_api"] = args.images
+        if args.music:
+            g["music_api"] = args.music
+        if args.llm:
+            cfg["llm"]["provider"] = args.llm
+        vdir = make(cfg, topic=args.topic, rhyme=args.rhyme, offline=args.offline, backend=args.backend,
+                    force=args.force, run_name=args.run_name)
+        print(f"16:9 video: {vdir / 'final.mp4'}")
+        for f in sorted((vdir / "shorts").glob("*.mp4")):
+            print(f"Short:      {f}")
+        print(f"Storyboard: {vdir / 'storyboard.md'}")
+
+    elif args.cmd == "topics":
+        from .demand import topic_demand
+        for d in topic_demand(cfg, Path(cfg["paths"]["data"]), args.offline):
+            print(f"{d['demand']:>6.1f}  {d['topic']:<10} {d['phrase']:<22} e.g. {'; '.join(d['suggestions'][:3])}")
+
+    elif args.cmd == "rhymes":
+        from .rhymes import RHYMES
+        for k, r in RHYMES.items():
+            print(f"{k:<24} {r['title']:<34} {'traditional tune' if r.get('tune') else 'generated tune'}")
 
     elif args.cmd == "scout":
         from .scout import run_scout

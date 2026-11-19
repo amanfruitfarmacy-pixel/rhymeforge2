@@ -1,11 +1,58 @@
 # RhymeForge
 
-One command that turns a week of research into four ~3-minute educational
-toddler songs on YouTube, using free tools only:
+Automated nursery-rhyme videos on free tools. Two ways to run it:
 
 ```bash
-rhymeforge week --count 4
+rhymeforge make --topic "brushing teeth"     # one video, no accounts, no GPU
+rhymeforge week --count 4                    # the full weekly YouTube pipeline
 ```
+
+## The pipeline (`rhymeforge make`)
+
+| Step | What gets automated | Free tool (paid option) |
+|---|---|---|
+| 1. Ideas | Ranks topics (colours, animals, bath time, brushing teeth, ...) by **YouTube search demand** from autocomplete, skipping topics you did recently. `rhymeforge topics` shows the ranking | YouTube autocomplete (no key) |
+| 2. Lyrics | Original songs with a scored opening hook and a safety review, **or** a public-domain rhyme (`--rhyme twinkle-twinkle`; `rhymeforge rhymes` lists them) sung with a short original intro/outro | Gemini free tier (or Claude with `--llm claude`) |
+| 3. Storyboard | One scene per lyric line: visual, motion, shot type. Repeated choruses reuse their scene. Written to `storyboard.md` | Gemini / Claude |
+| 4. Visuals | One image per scene; every prompt starts with the same style text and character descriptions so the characters look the same in every scene | Pollinations image API (no key), or your own art from Canva |
+| 5. Music and voice | Backing track (drums, bass, chords, glockenspiel + lead playing the melody; the **traditional tune** for public-domain rhymes) with every line placed on the beat | Local synth (free) + optional Piper TTS vocals; ElevenLabs music for real sung vocals (paid) |
+| 6. Assembly | Scenes cut to the line timings, **bouncing-word captions** (each word hops and turns yellow as it is sung), loudness -14 LUFS, and a native **1080x1920 Short** with phone-sized captions, plus thumbnail and QA | ffmpeg |
+
+```bash
+pip install -e .                                   # needs ffmpeg on PATH
+rhymeforge topics                                  # what people search for right now
+rhymeforge make                                    # picks the best topic by search demand
+rhymeforge make --topic "bath time"
+rhymeforge make --rhyme baa-baa-black-sheep
+rhymeforge make --rhyme twinkle-twinkle --images placeholder   # test run without the image API
+rhymeforge make --offline                          # no network at all
+```
+
+Output: `runs/make-<date>-<name>/<video>/final.mp4` (16:9), `shorts/short_1.mp4` (9:16), `storyboard.md`,
+`thumbnail.jpg`, `captions.srt`, `qa.json`.
+
+### Doing a step in another tool
+
+Every video folder also gets hand-off files, and anything you drop in is used instead of the generated version
+on the next run (add `--force` to rebuild):
+
+- **Canva visuals**: `canva_scenes.csv` lists every scene's lyric and prompt. Make the images in Canva (or ask
+  Claude with the Canva connector to make them), export them as `art/<shot>.png` (e.g. `art/s03.png`) in the video
+  folder, and re-run. An `art/<shot>.mp4` clip works too.
+- **Suno songs**: Suno has no official API. `suno.txt` has the lyrics in Suno's `[Verse]/[Chorus]` format and a style
+  line. Make the song on suno.com, save it as `song.mp3` (or `song.wav`) in the video folder and re-run. Captions are
+  then spread evenly over the song, so check the timing.
+- **ElevenLabs** (paid, sung vocals): set `ELEVENLABS_API_KEY` and add `--music elevenlabs`. Word timings come from
+  ElevenLabs speech-to-text.
+- **Free vocals**: `pip install -e ".[voice]"`, download a Piper voice (`.onnx` + `.onnx.json`, e.g. `en_US-amy-medium`
+  from the rhasspy/piper-voices repo on Hugging Face) and set `PIPER_VOICE=/path/to/voice.onnx`. Lines are spoken in
+  rhythm over the track, not sung. Without a voice the video is an instrumental sing-along with on-screen lyrics.
+- **Real sung vocals for free**: `--backend kaggle` runs the GPU path below (ACE-Step sings the lyrics, LTX-Video
+  animates the key scenes).
+- **Claude** writes the lyrics and storyboards with `--llm claude` (`pip install -e ".[claude]"`, `ANTHROPIC_API_KEY`;
+  paid). Gemini's free tier is the default.
+
+## The weekly YouTube pipeline (`rhymeforge week`)
 
 | Step | What happens | Free tool |
 |---|---|---|
@@ -21,11 +68,14 @@ rhymeforge week --count 4
 | 10. Upload | Private + scheduled (Mon/Wed/Fri/Sun by default, at least 24h ahead so you can review), `madeForKids`, AI disclosure, captions | YouTube Data API |
 | 11. Review | 48h after a video goes public: **retention autopsy** (the second people left + the lyric and shot on screen), lessons fed into next week's songwriting, and **Shorts** cut from the best moments | YouTube Analytics API |
 
-Re-running the command resumes: finished stages are loaded from `runs/<week>/`.
+Niches are scored by outlier strength **times** YouTube search demand from autocomplete. Re-running the command
+resumes: finished stages are loaded from `runs/<week>/`. `--backend api` runs the week without a GPU (as `make` does).
 
 ## Standalone tools
 
 ```bash
+rhymeforge topics                      # topics by YouTube search demand
+rhymeforge rhymes                      # built-in public-domain rhymes
 rhymeforge scout                       # outlier videos
 rhymeforge niches                      # under-served topics
 rhymeforge formulas                    # the 21 hook formulas
@@ -119,6 +169,11 @@ If the GPU job fails to make a song for a video, put your own `song.wav` in that
   `min_lead_hours` ahead; if something's wrong, unschedule it in Studio. YouTube demonetises repetitive,
   mass-produced content and has strict rules for kids' content. Recurring characters, real teaching value and your
   own review are what keep a channel safe.
+- **Public-domain means the words and tune, not recordings.** The built-in rhymes are traditional and out of
+  copyright, and RhymeForge makes its own audio. Don't use anyone else's recording or arrangement.
+- **The free image API and music paths were built without network access to those services** (Pollinations,
+  ElevenLabs, YouTube autocomplete). They're covered by tests with mocked responses and fall back to placeholders/
+  even timing on errors, but check the first real run.
 - **Retention data is approximate.** The YouTube Analytics API gives 100 points per video (~1.8 s apart on a
   3-minute video), so "the exact second" is accurate to about 2 seconds.
 

@@ -1,4 +1,8 @@
-"""Gemini API (free tier) client that returns parsed JSON.
+"""LLM client that returns parsed JSON.
+
+Providers (llm.provider in config):
+  gemini - Gemini API free tier (GEMINI_API_KEY), the default
+  claude - Claude via the Anthropic SDK (ANTHROPIC_API_KEY; paid, `pip install 'rhymeforge[claude]'`)
 
 When no key is configured, or in --offline mode, `available` is False and
 callers use their deterministic offline fallbacks instead.
@@ -24,6 +28,13 @@ class LLMError(RuntimeError):
 
 class LLM:
     def __init__(self, cfg: dict, offline: bool = False):
+        self.provider = cfg.get("llm", {}).get("provider", "gemini")
+        if self.provider == "claude":
+            self.claude_model = cfg["llm"].get("claude_model", "claude-opus-5-5")
+            self.claude_effort = cfg["llm"].get("claude_effort", "medium")
+            self.available = bool(cfg["keys"].get("anthropic")) and not offline
+            self._client = None
+            return
         self.key = cfg["keys"].get("gemini", "")
         self.model = cfg["gemini"]["model"]
         self.fallback = cfg["gemini"].get("fallback_model") or ""
@@ -34,7 +45,9 @@ class LLM:
     def json(self, prompt: str, system: str | None = None, temperature: float = 0.9,
              retries: int = 5) -> Any:
         if not self.available:
-            raise LLMError("LLM not available (offline or no GEMINI_API_KEY)")
+            raise LLMError("LLM not available (offline or no API key)")
+        if self.provider == "claude":
+            return self._claude_json(prompt, system)
         messages = [{"role": "system", "content": system}] if system else []
         messages.append({"role": "user", "content": prompt})
         body: dict[str, Any] = {"model": self.model, "messages": messages, "temperature": temperature,
@@ -72,6 +85,32 @@ class LLM:
             return parse_json(text)
         raise LLMError("Gemini retries exhausted")
 
+    def _claude_json(self, prompt: str, system: str | None) -> Any:
+        try:
+            import anthropic
+        except ImportError as e:
+            raise LLMError("llm.provider is claude but the anthropic package is missing: "
+                           "pip install 'rhymeforge[claude]'") from e
+        if self._client is None:
+            self._client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY
+        try:
+            r = self._client.beta.messages.create(
+                model=self.claude_model, max_tokens=16000, system=system or SYSTEM,
+                output_config={"effort": self.claude_effort},
+                betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+                messages=[{"role": "user", "content": prompt + "\nAnswer with the JSON only."}])
+        except anthropic.APIStatusError as e:
+            raise LLMError(f"Claude error {e.status_code}: {e.message}") from e
+        except anthropic.APIConnectionError as e:
+            raise LLMError(f"Claude connection error: {e}") from e
+        if r.stop_reason == "refusal":
+            raise LLMError("Claude declined this request")
+        text = "".join(b.text for b in r.content if b.type == "text")
+        try:
+            return parse_json(text)
+        except ValueError as e:
+            raise LLMError(f"Claude returned non-JSON: {text[:300]}") from e
+
     def json_list(self, prompt: str, **kw) -> list:
         """Like json(), but always returns a list (JSON mode may wrap lists in an object)."""
         r = self.json(prompt + "\nReturn a JSON object of the form {\"items\": [...]}.", **kw)
@@ -89,7 +128,13 @@ def parse_json(text: str) -> Any:
     m = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if m:
         text = m.group(1)
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except ValueError:
+        start = min((i for i in (text.find("{"), text.find("[")) if i >= 0), default=-1)
+        if start < 0:
+            raise
+        return json.JSONDecoder().raw_decode(text[start:])[0]
 
 
 SYSTEM = (

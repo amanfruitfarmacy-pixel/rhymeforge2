@@ -37,8 +37,10 @@ def rapid_cut_windows(path: Path, max_cuts_per_s: int = 3) -> list[float]:
     return bad
 
 
-def run_qa(final: Path, thumb: Path, package: dict, script: dict, cfg: dict) -> dict:
-    target = cfg["video"]["duration_s"]
+def run_qa(final: Path, thumb: Path, package: dict, script: dict, cfg: dict,
+           expected_s: float | None = None) -> dict:
+    """expected_s: the planned length (e.g. the song's); defaults to video.duration_s."""
+    target = expected_s or cfg["video"]["duration_s"]
     dur = media_duration(final)
     lufs = loudness(final)
     checks = {
